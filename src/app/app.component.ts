@@ -11,16 +11,35 @@ export class AppComponent implements OnInit {
   longitude: number;
 
   /**
-   * get device geolocation
+   * get or watch device geolocation
    * ensure geolocation permission is requested on iPhone - ToDo
    */
   ngOnInit() {
     if (!navigator.geolocation) { console.log('location is not supported'); }
     else {
-      navigator.geolocation.getCurrentPosition((position) => {
+      // navigator.geolocation.getCurrentPosition((position) => {
+      //   this.latitude = position.coords.latitude;
+      //   this.longitude = position.coords.longitude;
+      // });
+      this.watchPosition();
+    }
+  }
+
+  /**
+   * update device geolocation every 5 sec
+   */
+  watchPosition() {
+    navigator.geolocation.watchPosition(
+      (position) => {
         this.latitude = position.coords.latitude;
         this.longitude = position.coords.longitude;
-      });
-    }
+      },
+      (err) => { console.log(err); },
+      {
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 0
+      }
+    );
   }
 }
