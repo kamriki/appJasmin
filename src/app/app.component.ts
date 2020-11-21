@@ -14,27 +14,25 @@ export class AppComponent implements OnInit {
   private mapWidth =  window.innerWidth * 0.9;
   private mapHeight = window.innerHeight * 0.7;
   private virusWidth = 10;
-  public player: { x: number, y: number } = { x: null, y: null }; //!! set as private
+  private player: { x: number, y: number, sLat: number, sLng: number, oLat: number, oLng: number } = {
+    x: null, y: null, sLat: null, sLng: null, oLat: null, oLng: null
+  };
+  locations = [];
 
   /**
-   * get or watch device geolocation
-   * ensure geolocation permission is requested on iPhone - ToDo
    * prepare Arena (playing Area) by setting width & hight with respect to the browser width/lenght
+   * ensure geolocation permission is requested on iPhone - ToDo
+   * watch device geolocation
+   * start the game & get last level if existed - Todo
    */
   ngOnInit() {
-    if (!navigator.geolocation) { console.log('location is not supported'); }
-    else {
-      // navigator.geolocation.getCurrentPosition((position) => {
-      //   this.latitude = position.coords.latitude;
-      //   this.longitude = position.coords.longitude;
-      // });
-      this.watchPosition();
-    }
-
     this.canvas.nativeElement.width = this.mapWidth;
     this.canvas.nativeElement.height = this.mapHeight;
-
     this.ctx = this.canvas.nativeElement.getContext('2d');
+
+    if (!navigator.geolocation) { console.log('location is not supported'); }
+    else { this.watchPosition(); }
+
     // this.sendVirus(100, 10);
   }
 
@@ -89,7 +87,7 @@ export class AppComponent implements OnInit {
       (position) => {
         // this.player.latitude = position.coords.latitude;
         // this.player.longitude = position.coords.longitude;
-        this.mapCoordinates(position.coords.latitude, position.coords.longitude);
+        this.plotPlayer(position.coords.latitude, position.coords.longitude);
         // this.saveLocal('coordinate', {
         //   time: new Date(),
         //   latitude: position.coords.latitude,
@@ -124,14 +122,38 @@ export class AppComponent implements OnInit {
   }
 
   /**
-   * get x
-   * convert from degrees to radians
+   * store the started coordination as base (sLat/sLng) to compute the differnce of next moves
+   * start palyer position from bottom-middle if no older coordination (starting the game)
+   * plotting player by mapping his coordinates to the browser
+   * convert from degrees to radians (Mercator projection)
    */
-  mapCoordinates(lat: number, lng: number) {
+  plotPlayer(lat: number, lng: number) {
+    const factor = 1000;
+    // const locX = this.player.oLng ? (lng + 180) * (this.mapWidth / 360) : (this.mapWidth/2);
     const locX = (lng + 180) * (this.mapWidth / 360);
     const latRad = lat * Math.PI / 180;
     const mercN = Math.log(Math.tan((Math.PI / 4) + (latRad / 2)));
+    //const locY = this.player.oLat ? (this.mapHeight / 2) - (this.mapWidth * mercN / (2 * Math.PI)) : (this.mapHeight * 0.96);
     const locY = (this.mapHeight / 2) - (this.mapWidth * mercN / (2 * Math.PI));
-    this.player = {x: locX, y: locY };
+    this.player = {
+      x: !this.player.x ? (this.mapWidth/2) : locX,
+      y: !this.player.y ? (this.mapHeight * 0.96) : locY,
+      sLat: !this.player.sLat ? lat : this.player.sLat,
+      sLng: !this.player.sLng ? lng : this.player.sLng,
+      oLat: lat + ((lat - this.player.oLat) * factor),
+      oLng: lng + ((lng - this.player.oLng) * factor)
+    };
+    console.log(this.player)
+    // const timestamp = new Date(); this.locations.push({timestamp, lat, lng, locX, locY})
+    this.drawPlayer();
+  }
+
+  /** */
+  drawPlayer() {
+    this.ctx.clearRect(0, 0, this.mapWidth, this.mapHeight);
+    this.ctx.beginPath();
+    this.ctx.arc(this.player.x, this.player.y, 10, 0, Math.PI * 2);
+    this.ctx.fillStyle = 'black';
+    this.ctx.fill();
   }
 }
