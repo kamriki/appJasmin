@@ -16,10 +16,13 @@
 </div>
 
 <div class="content" role="main">
-  <div>
-    lat: <span>{{latitude}}</span>
-    lon: <span>{{longitude}}</span>
+  <canvas #canvas width="300" height="300"></canvas>
+  <div hidden>
+    <div >
+      lat: <span>{{latitude}}</span>
+      lon: <span>{{longitude}}</span>
+    </div>
+    <button (click)="getLocal('coordinate')">get Storage</button>
   </div>
-  <button (click)="getLocal('coordinate')">get Storage</button>
   <footer></footer>
 </div>
