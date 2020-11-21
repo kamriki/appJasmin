@@ -14,8 +14,10 @@ export class AppComponent implements OnInit {
   private mapWidth =  window.innerWidth * 0.9;
   private mapHeight = window.innerHeight * 0.7;
   private virusWidth = 10;
-  private player: { x: number, y: number, sLat: number, sLng: number, oLat: number, oLng: number } = {
-    x: null, y: null, sLat: null, sLng: null, oLat: null, oLng: null
+  private startedLat = null;
+  private startedLng = null;
+  private player: { x: number, y: number, dLat: number, dLng: number, oLat: number, oLng: number } = {
+    x: null, y: null, dLat: null, dLng: null, oLat: null, oLng: null
   };
   locations = [];
 
@@ -85,8 +87,10 @@ export class AppComponent implements OnInit {
   watchPosition() {
     navigator.geolocation.watchPosition(
       (position) => {
-        // this.player.latitude = position.coords.latitude;
-        // this.player.longitude = position.coords.longitude;
+        if (!this.startedLat) {
+          this.startedLat = position.coords.latitude;
+          this.startedLng = position.coords.longitude;
+        }
         this.plotPlayer(position.coords.latitude, position.coords.longitude);
         // this.saveLocal('coordinate', {
         //   time: new Date(),
@@ -122,6 +126,7 @@ export class AppComponent implements OnInit {
   }
 
   /**
+   * setting factor for accelerating player speed for within small area
    * store the started coordination as base (sLat/sLng) to compute the differnce of next moves
    * start palyer position from bottom-middle if no older coordination (starting the game)
    * plotting player by mapping his coordinates to the browser
@@ -129,22 +134,25 @@ export class AppComponent implements OnInit {
    */
   plotPlayer(lat: number, lng: number) {
     const factor = 1000;
-    // const locX = this.player.oLng ? (lng + 180) * (this.mapWidth / 360) : (this.mapWidth/2);
+    lat = Math.abs(lat - this.startedLat) * factor + this.startedLat;
+    lng = Math.abs(lng - this.startedLng) * factor + this.startedLng;
     const locX = (lng + 180) * (this.mapWidth / 360);
     const latRad = lat * Math.PI / 180;
     const mercN = Math.log(Math.tan((Math.PI / 4) + (latRad / 2)));
-    //const locY = this.player.oLat ? (this.mapHeight / 2) - (this.mapWidth * mercN / (2 * Math.PI)) : (this.mapHeight * 0.96);
     const locY = (this.mapHeight / 2) - (this.mapWidth * mercN / (2 * Math.PI));
+    // const dLat = Math.abs(lat - this.startedLat);
+    // const dLng = Math.abs(lng - this.startedLng);
     this.player = {
-      x: !this.player.x ? (this.mapWidth/2) : locX,
-      y: !this.player.y ? (this.mapHeight * 0.96) : locY,
-      sLat: !this.player.sLat ? lat : this.player.sLat,
-      sLng: !this.player.sLng ? lng : this.player.sLng,
-      oLat: lat + ((lat - this.player.oLat) * factor),
-      oLng: lng + ((lng - this.player.oLng) * factor)
+      x: !this.player.x ? (this.mapWidth/2) : (locX + (dLat * factor)),
+      y: !this.player.y ? (this.mapHeight * 0.96) : (locY + (dLng * factor)),
+      dLat: dLat,
+      dLng: dLng,
+      oLat: null, oLng: null
+      // oLat: this.player.oLat === lat ? this.player.oLat : lat,
+      // oLng: this.player.oLng === lng ? this.player.oLng : lng
     };
     console.log(this.player)
-    // const timestamp = new Date(); this.locations.push({timestamp, lat, lng, locX, locY})
+    const timestamp = new Date(); this.locations.push({timestamp, ...this.player, lat, lng})
     this.drawPlayer();
   }
 
