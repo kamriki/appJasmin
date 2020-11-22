@@ -52,23 +52,35 @@ export class AppComponent implements OnInit {
 
   /**
    * get permission for browser location
+   * plot player starting position
    * send viruses on level > 1 ith different speed & random y value
    */
   startGame() {
     if (!navigator.geolocation) { console.log('location is not supported'); }
     else {
       this.gameStarted = true;
+      this.clearingCanvas();
+
       this.watchPosition();
-
       // this.testWalking(); // For Testing
-    }
 
-    if (this.gameLevel < 2) { this.sendVirus(100, 10); }
-    else if (this.gameLevel > 4) {
-      //this.sendVirus(300, 15);
-      this.sendVirus(300, 20);
-      this.sendVirus(100, 10);
+      if (this.gameLevel < 2) { this.sendVirus(100, 10); }
+      else if (this.gameLevel > 4) {
+        //this.sendVirus(300, 15);
+        this.sendVirus(300, 20);
+        this.sendVirus(100, 10);
+      }
     }
+  }
+
+  /**
+   * clearing canvas to erase old movement of viruses & player
+   * exclude Exit sign
+   */
+  clearingCanvas() {
+    setInterval(() => {
+      this.ctx.clearRect(0, this.mapHeight*0.1, this.mapWidth, this.mapHeight);
+    },100)
   }
 
   /**
@@ -78,7 +90,7 @@ export class AppComponent implements OnInit {
     var x = 0;
     setInterval(() => {
       this.creatVirus(x % this.mapWidth + this.virusWidth, posY);
-      const distanceWithPlayer = Math.sqrt(Math.pow((x-this.player.x), 2)+Math.pow((posY-this.player.y), 2));
+      const distanceWithPlayer = Math.sqrt(Math.pow((x-this.player?.x), 2)+Math.pow((posY-this.player?.y), 2));
       // console.log(`virus ${posY}`, x, distanceWithPlayer)
       if (distanceWithPlayer < this.virusWidth + 22) {
         this.gameStarted = false;
@@ -165,10 +177,19 @@ export class AppComponent implements OnInit {
   }
 
   /**
+   * draw exit sign at canvas top-middle
+   */
+  drawExit() {
+    this.ctx.beginPath();
+    this.ctx.fillStyle = "crimson";
+    this.ctx.font = "20pt sans-serif";
+    this.ctx.fillText("EXIT", this.mapWidth/2-30, this.mapHeight/2*0.1);
+  }
+
+  /**
    * draw player as black circle using X & Y Pixel values inside the canvas
    */
   drawPlayer(player: {x: number, y: number}) {
-    this.ctx.clearRect(0, 0, this.mapWidth, this.mapHeight);
     this.ctx.beginPath();
     this.ctx.arc(player.x, player.y, 10, 0, Math.PI * 2);
     this.ctx.fillStyle = 'black';
@@ -178,6 +199,7 @@ export class AppComponent implements OnInit {
   /**
    * Retrive stored level & Speed Factor if available
    * otherwise set & store level as 1
+   * draw Exit door
    */
   gameSetting() {
     const storedLevel = this.getLocalStorage('level');
@@ -194,6 +216,8 @@ export class AppComponent implements OnInit {
     } else {
       this.gameSpeed = 1 * 10000;
     }
+
+    this.drawExit();
   }
 
   /**
