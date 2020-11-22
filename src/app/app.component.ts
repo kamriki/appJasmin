@@ -1,4 +1,5 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { AudioContext } from 'angular-audio-context';
 
 @Component({
   selector: 'app-root',
@@ -23,6 +24,8 @@ export class AppComponent implements OnInit {
   private gameLevel: number;
   private player: {x: number, y: number};
   locations = [];
+
+  constructor (private _audioContext: AudioContext) { }
 
   /**
    * prepare Arena (playing Area) by setting width & hight with respect to the browser width/lenght
@@ -55,9 +58,9 @@ export class AppComponent implements OnInit {
     if (!navigator.geolocation) { console.log('location is not supported'); }
     else {
       this.gameStarted = true;
-      // this.watchPosition();
+      this.watchPosition();
 
-      this.testWalking();
+      // this.testWalking(); // For Testing
     }
 
     if (this.gameLevel < 2) { this.sendVirus(100, 10); }
@@ -79,7 +82,8 @@ export class AppComponent implements OnInit {
       // console.log(`virus ${posY}`, x, distanceWithPlayer)
       if (distanceWithPlayer < this.virusWidth + 22) {
         this.gameStarted = false;
-        console.log(`virus ${posY} infected you !! ${x}`);
+        this.sound('hit');
+        console.log(`virus ${posY} infected you !! at x: ${x}`);
         alert(`virus ${posY} infected you !!`);
       }
       x++;
@@ -210,10 +214,30 @@ export class AppComponent implements OnInit {
       y: this.mapHeight * 0.96
     }
     setInterval(() => {
-      console.log('player', this.player)
+      // console.log('player', this.player)
       this.drawPlayer(this.player);
       this.player.y -= 10;
       if (this.player.y < 10) { this.gameWin(); }
     }, 200);
+  }
+
+  /**
+   * play sound with specified Oscillator
+   */
+  sound(event: string) {
+    let osc = this._audioContext.createOscillator();
+
+    osc.onended = () => osc.disconnect();
+    osc.connect(this._audioContext.destination);
+
+    switch(event) {
+      case 'hit':
+      osc.type = "triangle";
+      osc.frequency.value = 100;
+      break;
+    }
+
+    osc.start();
+    osc.stop(this._audioContext.currentTime + 0.2);
   }
 }
