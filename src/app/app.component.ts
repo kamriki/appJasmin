@@ -19,8 +19,9 @@ export class AppComponent implements OnInit {
   public gameStarted = false;
   public isWinner: boolean = null;
   public storedSpeed: number;
-  private gameSpeed = 10000;
-  private gameLevel: Number;
+  private gameSpeed: number;
+  private gameLevel: number;
+  private player: {x: number, y: number};
   locations = [];
 
   /**
@@ -48,7 +49,7 @@ export class AppComponent implements OnInit {
 
   /**
    * get permission for browser location
-   * send viruses on level > 1
+   * send viruses on level > 1 ith different speed & random y value
    */
   startGame() {
     if (!navigator.geolocation) { console.log('location is not supported'); }
@@ -59,7 +60,12 @@ export class AppComponent implements OnInit {
       this.testWalking();
     }
 
-    if (this.gameLevel > 1) { this.sendVirus(100, 10); }
+    if (this.gameLevel < 2) { this.sendVirus(100, 10); }
+    else if (this.gameLevel > 4) {
+      //this.sendVirus(300, 15);
+      this.sendVirus(300, 20);
+      this.sendVirus(100, 10);
+    }
   }
 
   /**
@@ -68,8 +74,14 @@ export class AppComponent implements OnInit {
   sendVirus(posY: number, speed: number) {
     var x = 0;
     setInterval(() => {
-      this.ctx.clearRect(0, 0, this.mapWidth, this.mapHeight);
       this.creatVirus(x % this.mapWidth + this.virusWidth, posY);
+      const distanceWithPlayer = Math.sqrt(Math.pow((x-this.player.x), 2)+Math.pow((posY-this.player.y), 2));
+      // console.log(`virus ${posY}`, x, distanceWithPlayer)
+      if (distanceWithPlayer < this.virusWidth + 22) {
+        this.gameStarted = false;
+        console.log(`virus ${posY} infected you !! ${x}`);
+        alert(`virus ${posY} infected you !!`);
+      }
       x++;
     }, speed);
   }
@@ -132,27 +144,29 @@ export class AppComponent implements OnInit {
     const dLat = Math.abs(lat - this.startedLat) * this.gameSpeed;
     const dLng = Math.abs(lng - this.startedLng) * this.gameSpeed;
     const delta = dLat > dLng ? dLat : dLng;
-    const locX = this.mapWidth/2;
-    const locY = this.mapHeight * 0.96 - delta;
+    this.player = {
+      x: this.mapWidth/2,
+      y: this.mapHeight * 0.96 - delta
+    }
 
     const timestamp = new Date();
     // this.locations.push({timestamp, lat, lng, dLat, dLng, locX, locY}); // Stats Analysis
-    console.info({timestamp, lat, lng, dLat, dLng, locX, locY});
+    console.info({timestamp, lat, lng, dLat, dLng}, this.player);
 
-    if (locY < 10) {
+    if (this.player.y < 10) {
       this.gameWin();
     } else {
-      this.drawPlayer(locX, locY);
+      this.drawPlayer(this.player);
     }
   }
 
   /**
    * draw player as black circle using X & Y Pixel values inside the canvas
    */
-  drawPlayer(x: number, y: number) {
+  drawPlayer(player: {x: number, y: number}) {
     this.ctx.clearRect(0, 0, this.mapWidth, this.mapHeight);
     this.ctx.beginPath();
-    this.ctx.arc(x, y, 10, 0, Math.PI * 2);
+    this.ctx.arc(player.x, player.y, 10, 0, Math.PI * 2);
     this.ctx.fillStyle = 'black';
     this.ctx.fill();
   }
@@ -179,23 +193,27 @@ export class AppComponent implements OnInit {
   }
 
   /**
-   *
+   * increment level & store it in webStorage
    */
   gameWin() {
     this.isWinner = true;
     this.gameStarted = false;
+    this.gameLevel += 1;
+    this.saveLocalStorage('level', this.gameLevel);
     alert('You Win');
   }
 
   /** Game Simulatation */
   testWalking() {
-    let x = this.mapWidth/2;
-    let y = this.mapHeight * 0.96;
+    this.player = {
+      x: this.mapWidth/2,
+      y: this.mapHeight * 0.96
+    }
     setInterval(() => {
-      console.log(x, y)
-      this.drawPlayer(x, y);
-      y -= 10;
-      if (y < 10) { alert('You Win'); }
+      console.log('player', this.player)
+      this.drawPlayer(this.player);
+      this.player.y -= 10;
+      if (this.player.y < 10) { this.gameWin(); }
     }, 200);
   }
 }
