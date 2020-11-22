@@ -22,6 +22,7 @@ export class AppComponent implements OnInit {
   public storedSpeed: number;
   private gameSpeed: number;
   private gameLevel: number;
+  public pGameLevel: number;
   private player: {x: number, y: number};
   locations = [];
 
@@ -209,6 +210,7 @@ export class AppComponent implements OnInit {
       this.gameLevel = 1;
       this.saveLocalStorage('level', 1);
     }
+    this.pGameLevel = this.gameLevel;
 
     this.storedSpeed = Number(this.getLocalStorage('speed'));
     if (this.storedSpeed) {
