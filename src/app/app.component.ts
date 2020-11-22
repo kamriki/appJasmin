@@ -57,7 +57,17 @@ export class AppComponent implements OnInit {
    * send viruses on level > 1 ith different speed & random y value
    */
   startGame() {
-    if (!navigator.geolocation) { console.log('location is not supported'); }
+    if (!navigator.geolocation) {
+      console.log('location is not supported');
+      navigator.permissions.query({name:'geolocation'})
+      .then(function(permissionStatus) {
+        console.log('geolocation permission state is ', permissionStatus.state);
+
+        permissionStatus.onchange = function() {
+          console.log('geolocation permission state has changed to ', this.state);
+        };
+      });
+    }
     else {
       this.gameStarted = true;
       this.clearingCanvas();
@@ -135,14 +145,14 @@ export class AppComponent implements OnInit {
     );
   }
 
-  /** !! NOT USED
+  /**
    * save coordinate with time in localStorage
    */
   saveLocalStorage(key: string, value: any) {
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  /** !! NOT USED
+  /**
    * get data from localStorage
    */
   getLocalStorage(key: string) {
