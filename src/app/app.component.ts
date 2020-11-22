@@ -16,9 +16,11 @@ export class AppComponent implements OnInit {
   private virusWidth = 10;
   private startedLat = null;
   private startedLng = null;
-  private player: { x: number, y: number, dLat: number, dLng: number, oLat: number, oLng: number } = {
-    x: null, y: null, dLat: null, dLng: null, oLat: null, oLng: null
-  };
+  public gameStarted = false;
+  public isWinner: boolean = null;
+  public storedSpeed: number;
+  private gameSpeed = 10000;
+  private gameLevel: Number;
   locations = [];
 
   /**
@@ -31,11 +33,33 @@ export class AppComponent implements OnInit {
     this.canvas.nativeElement.width = this.mapWidth;
     this.canvas.nativeElement.height = this.mapHeight;
     this.ctx = this.canvas.nativeElement.getContext('2d');
+    this.gameSetting();
+  }
 
+  /**
+   * store selected speed
+   * set Speed factor for accelerating player speed within small area
+   */
+  setGameSpeed(speed) {
+    this.saveLocalStorage('speed', Number(speed));
+    this.gameSpeed *= Number(speed);
+    // console.log(speed);
+  }
+
+  /**
+   * get permission for browser location
+   * send viruses on level > 1
+   */
+  startGame() {
     if (!navigator.geolocation) { console.log('location is not supported'); }
-    else { this.watchPosition(); }
+    else {
+      this.gameStarted = true;
+      // this.watchPosition();
 
-    // this.sendVirus(100, 10);
+      this.testWalking();
+    }
+
+    if (this.gameLevel > 1) { this.sendVirus(100, 10); }
   }
 
   /**
@@ -60,29 +84,9 @@ export class AppComponent implements OnInit {
     this.ctx.fill();
   }
 
-  /** */
-  // update() {
-  //   // console.log(this.ctx);
-  //   this.ctx.clearRect(0, 0, this.canvas.nativeElement.width, this.canvas.nativeElement.height);
-  //   this.drawCircle();
-
-  //   // chnage position
-  //   this.circle.x += this.circle.dx;
-  //   this.circle.y += this.circle.dy;
-
-  //   // detect side walls | top & bottom walls
-  //   if (this.circle.x + this.circle.size > this.canvas.nativeElement.width || this.circle.x - this.circle.size < 0) {
-  //     this.circle.dx *= -1;
-  //   }
-  //   if (this.circle.y + this.circle.size > this.canvas.nativeElement.height || this.circle.y - this.circle.size < 0) {
-  //     this.circle.dy *= -1;
-  //   }
-  //   window.requestAnimationFrame(this.update);
-  // }
-
   /**
-   * update device geolocation every 5 sec
-   * save location to storage - !! to remove
+   * store started coordination as base (startedLat/startedLng) to compute the differnce of next moves
+   * update device geolocation every 0 sec
    */
   watchPosition() {
     navigator.geolocation.watchPosition(
@@ -92,11 +96,6 @@ export class AppComponent implements OnInit {
           this.startedLng = position.coords.longitude;
         }
         this.plotPlayer(position.coords.latitude, position.coords.longitude);
-        // this.saveLocal('coordinate', {
-        //   time: new Date(),
-        //   latitude: position.coords.latitude,
-        //   longitude: position.coords.longitude
-        // });
       },
       (err) => { console.log(err); },
       {
@@ -107,61 +106,96 @@ export class AppComponent implements OnInit {
     );
   }
 
-  /**
+  /** !! NOT USED
    * save coordinate with time in localStorage
    */
-  saveLocal(key: string, value: any) {
+  saveLocalStorage(key: string, value: any) {
     localStorage.setItem(key, JSON.stringify(value));
   }
 
   /** !! NOT USED
    * get data from localStorage
    */
-  getLocal(key: string) {
+  getLocalStorage(key: string) {
     const value = localStorage.getItem(key);
-    if (value) {
-      console.log(JSON.parse(value));
-      //return JSON.parse(value)
+    if (value) { return JSON.parse(value) }
+  }
+
+  /**
+   * compute the differance of changes of new position with the started one
+   * choose the biggest difference (delta) between lat or lng
+   * add delta to locY for only changing player Y pixels and keep X position in the middle
+   * start palyer position from bottom-middle then use difference in of moving to accelerate toward end of pathway
+   * check Y value if reached end of canvas to win the game
+   */
+  plotPlayer(lat: number, lng: number) {
+    const dLat = Math.abs(lat - this.startedLat) * this.gameSpeed;
+    const dLng = Math.abs(lng - this.startedLng) * this.gameSpeed;
+    const delta = dLat > dLng ? dLat : dLng;
+    const locX = this.mapWidth/2;
+    const locY = this.mapHeight * 0.96 - delta;
+
+    const timestamp = new Date();
+    // this.locations.push({timestamp, lat, lng, dLat, dLng, locX, locY}); // Stats Analysis
+    console.info({timestamp, lat, lng, dLat, dLng, locX, locY});
+
+    if (locY < 10) {
+      this.gameWin();
+    } else {
+      this.drawPlayer(locX, locY);
     }
   }
 
   /**
-   * setting factor for accelerating player speed for within small area
-   * store the started coordination as base (sLat/sLng) to compute the differnce of next moves
-   * start palyer position from bottom-middle if no older coordination (starting the game)
-   * plotting player by mapping his coordinates to the browser
-   * convert from degrees to radians (Mercator projection)
+   * draw player as black circle using X & Y Pixel values inside the canvas
    */
-  plotPlayer(lat: number, lng: number) {
-    const factor = 1000;
-    lat = Math.abs(lat - this.startedLat) * factor + this.startedLat;
-    lng = Math.abs(lng - this.startedLng) * factor + this.startedLng;
-    const locX = (lng + 180) * (this.mapWidth / 360);
-    const latRad = lat * Math.PI / 180;
-    const mercN = Math.log(Math.tan((Math.PI / 4) + (latRad / 2)));
-    const locY = (this.mapHeight / 2) - (this.mapWidth * mercN / (2 * Math.PI));
-    // const dLat = Math.abs(lat - this.startedLat);
-    // const dLng = Math.abs(lng - this.startedLng);
-    this.player = {
-      x: !this.player.x ? (this.mapWidth/2) : (locX + (dLat * factor)),
-      y: !this.player.y ? (this.mapHeight * 0.96) : (locY + (dLng * factor)),
-      dLat: dLat,
-      dLng: dLng,
-      oLat: null, oLng: null
-      // oLat: this.player.oLat === lat ? this.player.oLat : lat,
-      // oLng: this.player.oLng === lng ? this.player.oLng : lng
-    };
-    console.log(this.player)
-    const timestamp = new Date(); this.locations.push({timestamp, ...this.player, lat, lng})
-    this.drawPlayer();
-  }
-
-  /** */
-  drawPlayer() {
+  drawPlayer(x: number, y: number) {
     this.ctx.clearRect(0, 0, this.mapWidth, this.mapHeight);
     this.ctx.beginPath();
-    this.ctx.arc(this.player.x, this.player.y, 10, 0, Math.PI * 2);
+    this.ctx.arc(x, y, 10, 0, Math.PI * 2);
     this.ctx.fillStyle = 'black';
     this.ctx.fill();
+  }
+
+  /**
+   * Retrive stored level & Speed Factor if available
+   * otherwise set & store level as 1
+   */
+  gameSetting() {
+    const storedLevel = this.getLocalStorage('level');
+    if (storedLevel !== undefined) {
+      this.gameLevel = Number(storedLevel);
+    } else {
+      this.gameLevel = 1;
+      this.saveLocalStorage('level', 1);
+    }
+
+    this.storedSpeed = Number(this.getLocalStorage('speed'));
+    if (this.storedSpeed) {
+      this.gameSpeed = this.storedSpeed * 10000;
+    } else {
+      this.gameSpeed = 1 * 10000;
+    }
+  }
+
+  /**
+   *
+   */
+  gameWin() {
+    this.isWinner = true;
+    this.gameStarted = false;
+    alert('You Win');
+  }
+
+  /** Game Simulatation */
+  testWalking() {
+    let x = this.mapWidth/2;
+    let y = this.mapHeight * 0.96;
+    setInterval(() => {
+      console.log(x, y)
+      this.drawPlayer(x, y);
+      y -= 10;
+      if (y < 10) { alert('You Win'); }
+    }, 200);
   }
 }
